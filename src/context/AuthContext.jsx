@@ -46,6 +46,16 @@ export const AuthProvider = ({ children }) => {
       email,
       full_name,
       role: "employee",
+
+      await supabase.auth.signUp({
+       email,
+       password,
+       options: {
+       data: { full_name },
+       emailRedirectTo: `${window.location.origin}/login`
+       }
+     });
+
     });
 
     return { success: true, user: data.user };
