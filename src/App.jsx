@@ -1,5 +1,5 @@
 import React from 'react'
-
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'

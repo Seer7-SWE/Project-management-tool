@@ -1,7 +1,7 @@
 // src/components/Sidebar.jsx
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-
+import { useNavigate } from "react-router-dom";
 import { LogOut, LayoutDashboard, ListChecks } from "lucide-react";
 
 export default function Sidebar() {
