@@ -1,3 +1,0 @@
-name = "projectmanagementtool"
-compatibility_date = "2025-10-07"
-main = "./node_modules/wrangler/templates/pages-dev-worker.js"
