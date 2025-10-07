@@ -7,9 +7,11 @@ import { TaskProvider } from '../context/TaskContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState([]);
+  const [setProjects] = useState([]);
   const [activeProject, setActiveProject] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [setLoading] = useState(true);
+  const { projects, loading, error } = useProjects();
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -146,6 +148,27 @@ export default function Dashboard() {
           </TaskProvider>
         )}
       </div>
+    </div>
+
+    <div>
+      <h1>Your Projects</h1>
+      <button onClick={() => setShowModal(true)}>Add Project</button>
+      {showModal && (
+        <AddProjectModal
+          onClose={() => setShowModal(false)}
+          onProjectAdded={() => window.location.reload()} // Simple force refresh; ideally use state update
+        />
+      )}
+      {loading && <div>Loading projects...</div>}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+      {!loading && !error && projects.length === 0 && <div>No projects yet. Create your first project!</div>}
+      <ul>
+        {projects.map(p => (
+          <li key={p.id}>
+            <a href={`/project/${p.id}`}>{p.name}</a>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
