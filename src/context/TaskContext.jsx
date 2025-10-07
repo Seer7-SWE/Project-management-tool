@@ -1,65 +1,77 @@
-// src/context/TaskContext.jsx
-import react , { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { AuthContext } from "./AuthContext";
+import { useAuth } from "./AuthContext";
 
-export const TaskContext = createContext();
+const TaskContext = createContext();
 
 export const TaskProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
-  const [editingTask, setEditingTask] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch tasks for the current user
-  const fetchTasks = async () => {
+  // Load tasks for current user (or all tasks)
+  async function loadTasks() {
     if (!user) return;
+    setLoading(true);
+
     const { data, error } = await supabase
       .from("tasks")
       .select("*")
-      .eq("assigned_to_auth", user.id)
       .order("created_at", { ascending: false });
-    
-    if(error) console.error('Error fetching tasks:', error);
+
+    if (error) console.error("Error fetching tasks:", error);
     else setTasks(data || []);
     setLoading(false);
-  };
+  }
 
- const addTask = async (task) => {
-    const { data, error } = await supabase.from('tasks').insert([task]).select();
-    if (error) console.error('Error adding task:', error);
-    else setTasks((prev) => [data[0], ...prev]);
-  };
+  // Add new task
+  async function addTask(task) {
+    const { data, error } = await supabase.from("tasks").insert([task]);
+    if (error) console.error("Error adding task:", error);
+    else setTasks((prev) => [...prev, ...data]);
+  }
 
   // Update task
-  const updateTask = async (id, updates) => {
-    const { data, error } = await supabase.from('tasks').update(updates).eq('id', id).select();
-    if (error) console.error('Error updating task:', error);
-    else setTasks((prev) => prev.map((t) => (t.id === id ? data[0] : t)));
-  };
+  async function updateTask(id, updates) {
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(updates)
+      .eq("id", id)
+      .select();
+
+    if (error) console.error("Error updating task:", error);
+    else
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...data[0] } : t))
+      );
+  }
 
   // Delete task
-  const deleteTask = async (id) => {
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
-    if (error) console.error('Error deleting task:', error);
+  async function deleteTask(id) {
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    if (error) console.error("Error deleting task:", error);
     else setTasks((prev) => prev.filter((t) => t.id !== id));
-  };
-  
-  useEffect(() => {
-    if(!user) return;
-    fetchTasks();
+  }
 
-    // Realtime subscription for tasks
+  // Subscribe to realtime updates
+  useEffect(() => {
+    loadTasks();
+
     const channel = supabase
-      .channel('realtime-tasks')
+      .channel("public:tasks")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks" },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
+          console.log("Realtime payload:", payload);
+
+          if (payload.eventType === "INSERT") {
             setTasks((prev) => [payload.new, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setTasks((prev) => prev.map((t) => (t.id === payload.new.id ? payload.new : t)));
-          } else if (payload.eventType === 'DELETE') {
+          } else if (payload.eventType === "UPDATE") {
+            setTasks((prev) =>
+              prev.map((t) => (t.id === payload.new.id ? payload.new : t))
+            );
+          } else if (payload.eventType === "DELETE") {
             setTasks((prev) => prev.filter((t) => t.id !== payload.old.id));
           }
         }
@@ -73,14 +85,7 @@ export const TaskProvider = ({ children }) => {
 
   return (
     <TaskContext.Provider
-      value={{
-        tasks,
-        loading,
-        fetchTasks,
-        addTask,
-        updateTask,
-        deleteTask.
-      }}
+      value={{ tasks, loading, addTask, updateTask, deleteTask, loadTasks }}
     >
       {children}
     </TaskContext.Provider>
