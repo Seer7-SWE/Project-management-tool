@@ -46,6 +46,9 @@ export const AuthProvider = ({ children }) => {
       email,
       full_name,
       role: "employee",
+
+      
+
     });
 
     await supabase.auth.signUp({
