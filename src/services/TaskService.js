@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 // Fetch all tasks for current user
 export async function getTasksForUser(user) {
   const { data, error } = await supabase
-    .from("tasks")
+    from("tasks")
     .select("*")
     .eq("assigned_to_auth", user.id)
     .order("created_at", { ascending: false });
