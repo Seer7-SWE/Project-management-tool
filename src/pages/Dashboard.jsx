@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '../utils/supabaseClient'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
-import TaskBoard from '../components/Taskboard'
+import TaskBoard from '../components/TaskBoard'
 import TaskModal from '../components/TaskModal'
 import { TaskProvider } from '../context/TaskContext'
 
