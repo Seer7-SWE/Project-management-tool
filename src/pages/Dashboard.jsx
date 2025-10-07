@@ -19,7 +19,7 @@ export default function Dashboard() {
   }, [])
 
   async function loadProjects() {
-    const { data, error } = from('projects').select('*').order('created_at', { ascending: false })
+    const { data, error } = supabase.from('projects').select('*').order('created_at', { ascending: false })
     if (error) console.error(error)
     else setProjects(data || [])
   }
@@ -27,7 +27,7 @@ export default function Dashboard() {
   async function createProject() {
     const name = prompt('Project name')
     if (!name) return
-    const { error } = from('projects').insert([{ name }])
+    const { error } = supabase.from('projects').insert([{ name }])
     if (error) alert(error.message)
   }
 
