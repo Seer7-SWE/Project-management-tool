@@ -13,8 +13,8 @@ export const TaskProvider = ({ children }) => {
   // Fetch tasks for the current user
   const fetchTasks = async () => {
     if (!user) return;
-    const { data, error } = 
-      supabase.from("tasks")
+    const { data, error } = await supabase
+      .from("tasks")
       .select("*")
       .eq("assigned_to_auth", user.id)
       .order("created_at", { ascending: false });
