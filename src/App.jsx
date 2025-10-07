@@ -15,6 +15,7 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
+      <TaskProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/tasks" element={<TaskBoard />} />
       </Routes>
+     </TaskProvider>
     </AuthProvider>
   )
 }
