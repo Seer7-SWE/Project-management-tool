@@ -26,7 +26,7 @@ export default function TaskBoard({ onEdit }) {
     const newStatus = destination.droppableId
     try {
       from('tasks').update({ status: newStatus }).eq('id', draggableId)
-      // realtime subscription will refresh tasks; optional optimistic update can be added
+      await supabase.from('tasks').update({ status: newStatus }).eq('id', draggableId)
     } catch (err) {
       console.error('drag update error', err)
     }
