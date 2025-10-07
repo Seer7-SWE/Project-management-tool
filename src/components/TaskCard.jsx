@@ -4,7 +4,7 @@ import { TaskProvider } from "../context/TaskContext"
 import { Pencil, Trash2 } from "lucide-react"
 
 export default function TaskCard({ task }) {
-  const { deleteTask, setEditingTask } = useContext(TaskContext);
+  const { deleteTask, setEditingTask } = useContext(TaskProvider);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-3 mb-3 border border-gray-200 hover:shadow-lg transition">
