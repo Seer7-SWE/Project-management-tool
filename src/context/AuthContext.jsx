@@ -41,14 +41,24 @@ export const AuthProvider = ({ children }) => {
     if (error) return { success: false, message: error.message };
 
     // Insert into 'users' table
-    await supabase.from("users").insert({
+    .from("users").insert({
       auth_id: data.user.id,
       email,
       full_name,
       role: "employee",
     });
 
+    await supabase.auth.signUp({
+     email,
+     password,
+     options: {
+     data: { full_name },
+    emailRedirectTo: `${window.location.origin}/login`
+    }
+    });
+
     return { success: true, user: data.user };
+
   };
 
   const logout = async () => {

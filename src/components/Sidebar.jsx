@@ -1,8 +1,9 @@
 // src/components/Sidebar.jsx
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link }  from "react-router-dom";
 import { LogOut, LayoutDashboard, ListChecks } from "lucide-react";
+
 
 export default function Sidebar() {
   const { user, logout } = useContext(AuthContext);
@@ -32,6 +33,12 @@ export default function Sidebar() {
           >
             <ListChecks size={20} /> Tasks
           </button>
+          <Link
+                 to="/tasks"
+                 className="block p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+          >
+            🗂️ Tasks
+          </Link>
         </nav>
       </div>
 

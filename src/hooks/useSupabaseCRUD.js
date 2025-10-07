@@ -4,7 +4,7 @@ import { supabase } from '../utils/supabaseClient'
 export async function uploadAttachment(projectId, file) {
   if (!file) return null
   const filePath = `${projectId}/tasks/${Date.now()}-${file.name}`
-  const { data, error } = await supabase.storage.from('attachments').upload(filePath, file)
+  const { data, error } = .storage.from('attachments').upload(filePath, file)
   if (error) {
     console.error('uploadAttachment error', error)
     throw error
