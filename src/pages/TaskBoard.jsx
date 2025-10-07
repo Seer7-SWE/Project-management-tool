@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../utils/supabaseClient";
 import { getTasksForUser, deleteTask } from "../services/TaskService";
 import TaskModal from "../components/TaskModal";
 
