@@ -9,7 +9,6 @@ function Protected({ children }) {
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Protected><Dashboard /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
-        <Route path="/tasks" element={<Taskboard />} />
         <Route path="/tasks" element={<TaskBoard />} />
       </Routes>
     </AuthProvider>
