@@ -4,7 +4,7 @@ import { useAuth } from "./AuthContext";
 
 const TaskContext = createContext();
 
-export default function TaskProvider = ({ children }) => {
+export default const TaskProvider = ({ children }) => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
