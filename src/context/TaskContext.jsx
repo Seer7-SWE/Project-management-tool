@@ -14,7 +14,7 @@ export const TaskProvider = ({ children }) => {
   const fetchTasks = async () => {
     if (!user) return;
     const { data, error } = 
-      from("tasks")
+      supabase.from("tasks")
       .select("*")
       .eq("assigned_to_auth", user.id)
       .order("created_at", { ascending: false });
@@ -26,7 +26,7 @@ export const TaskProvider = ({ children }) => {
 
     // Realtime subscription for tasks
     const subscription = supabase
-      from(`tasks:assigned_to_auth=eq.${user?.id}`)
+      .from(`tasks:assigned_to_auth=eq.${user?.id}`)
       .on("*", fetchTasks)
       .subscribe();
 
@@ -35,7 +35,7 @@ export const TaskProvider = ({ children }) => {
 
   // CRUD Operations
   const createTask = async (task) => {
-    const { data, error } = from("tasks").insert([
+    const { data, error } = supabase.from("tasks").insert([
       {
         ...task,
         assigned_to_auth: user.id,
@@ -46,14 +46,14 @@ export const TaskProvider = ({ children }) => {
 
   const updateTask = async (id, updates) => {
     const { data, error } = 
-      from("tasks")
+      supabase.from("tasks")
       .update(updates)
       .eq("id", id);
     if (!error) fetchTasks();
   };
 
   const deleteTask = async (id) => {
-    const { error } = from("tasks").delete().eq("id", id);
+    const { error } = supabase.from("tasks").delete().eq("id", id);
     if (!error) setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
