@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../utils/supabaseClient";
 
 // Fetch all tasks for current user
 export async function getTasksForUser(user) {
