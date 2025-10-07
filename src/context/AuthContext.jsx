@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     if (error) return { success: false, message: error.message };
 
     // Insert into 'users' table
-    from("users").insert({
+    .from("users").insert({
       auth_id: data.user.id,
       email,
       full_name,
