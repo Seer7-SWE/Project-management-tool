@@ -1,0 +1,4 @@
+name = "projectmanagementtool"
+compatibility_date = "2025-10-07"
+[site]
+bucket = "./dist"
