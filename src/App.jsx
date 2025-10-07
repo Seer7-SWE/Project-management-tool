@@ -19,7 +19,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Protected><Dashboard /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
-        <Route path="/tasks" element={<TaskBoard />} />
+        <Route path="/tasks" element={<Taskboard />} />
       </Routes>
     </AuthProvider>
   )
