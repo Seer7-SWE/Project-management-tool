@@ -4,7 +4,7 @@ import Register from './pages/Register'
 import TaskBoard from './pages/TaskBoard'
 
 function Protected({ children }) {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Protected><Dashboard /></Protected>} />
