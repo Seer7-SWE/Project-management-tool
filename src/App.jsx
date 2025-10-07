@@ -5,7 +5,7 @@ import TaskBoard from './pages/TaskBoard'
 
 function Protected({ children }) {
   const { user } = useAuth()
- export default function App() {
+
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Protected><Dashboard /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
