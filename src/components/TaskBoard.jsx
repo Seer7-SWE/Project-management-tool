@@ -25,7 +25,6 @@ export default function TaskBoard({ onEdit }) {
 
     const newStatus = destination.droppableId
     try {
-      from('tasks').update({ status: newStatus }).eq('id', draggableId)
       await supabase.from('tasks').update({ status: newStatus }).eq('id', draggableId)
     } catch (err) {
       console.error('drag update error', err)
