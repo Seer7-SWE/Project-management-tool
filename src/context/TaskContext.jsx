@@ -14,7 +14,7 @@ export const TaskProvider = ({ children }) => {
   const fetchTasks = async () => {
     if (!user) return;
     const { data, error } = 
-      .from("tasks")
+      from("tasks")
       .select("*")
       .eq("assigned_to_auth", user.id)
       .order("created_at", { ascending: false });
@@ -35,7 +35,7 @@ export const TaskProvider = ({ children }) => {
 
   // CRUD Operations
   const createTask = async (task) => {
-    const { data, error } = .from("tasks").insert([
+    const { data, error } = from("tasks").insert([
       {
         ...task,
         assigned_to_auth: user.id,
@@ -46,14 +46,14 @@ export const TaskProvider = ({ children }) => {
 
   const updateTask = async (id, updates) => {
     const { data, error } = 
-      .from("tasks")
+      from("tasks")
       .update(updates)
       .eq("id", id);
     if (!error) fetchTasks();
   };
 
   const deleteTask = async (id) => {
-    const { error } = .from("tasks").delete().eq("id", id);
+    const { error } = from("tasks").delete().eq("id", id);
     if (!error) setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
