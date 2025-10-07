@@ -1,6 +1,6 @@
 // src/components/TaskCard.jsx
 import { useContext } from "react"
-import { TaskContext } from "../context/TaskContext"
+import { TaskProvider } from "../context/TaskContext"
 import { Pencil, Trash2 } from "lucide-react"
 
 export default function TaskCard({ task }) {
