@@ -26,7 +26,7 @@ export const TaskProvider = ({ children }) => {
 
     // Realtime subscription for tasks
     const subscription = supabase
-      .from(`tasks:assigned_to_auth=eq.${user?.id}`)
+      from(`tasks:assigned_to_auth=eq.${user?.id}`)
       .on("*", fetchTasks)
       .subscribe();
 
