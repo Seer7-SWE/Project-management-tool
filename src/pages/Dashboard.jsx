@@ -7,36 +7,62 @@ import { TaskProvider } from '../context/TaskContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [setProjects] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeProject, setActiveProject] = useState(null);
-  const [setLoading] = useState(true);
-  const { projects, loading, error } = useProjects();
-  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     loadProjects();
-    const ch = supabase.channel('projects-list').on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => loadProjects()).subscribe();
+    const ch = supabase
+      .channel('projects-list')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => loadProjects())
+      .subscribe();
     return () => supabase.removeChannel(ch);
   }, []);
 
   async function loadProjects() {
     setLoading(true);
+    // Only fetch projects where user is a member
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from('projects')
-      .select('*')
+      .select('*, project_members!inner(role)')
+      .eq('project_members.user_auth_id', userData.user.id)
       .eq('archived', false)
       .order('created_at', { ascending: false });
-    
-    if (error) console.error(error);
-    else setProjects(data || []);
+
+    if (error) {
+      console.error(error);
+      setProjects([]);
+    } else {
+      setProjects(data || []);
+    }
     setLoading(false);
   }
 
   async function createProject() {
     const name = prompt('Project name');
     if (!name) return;
-    const { error } = await supabase.from('projects').insert([{ name }]);
-    if (error) alert(error.message);
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) return alert('Not logged in!');
+    // Insert project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .insert([{ name, created_by: userData.user.id }])
+      .select()
+      .single();
+    if (projectError) return alert(projectError.message);
+    // Insert creator as member
+    const { error: memberError } = await supabase
+      .from('project_members')
+      .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
+    if (memberError) return alert(memberError.message);
+    await loadProjects();
   }
 
   const handleViewProject = (project) => {
@@ -76,7 +102,6 @@ export default function Dashboard() {
         {/* Projects Section */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Your Projects</h2>
-          
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -99,7 +124,7 @@ export default function Dashboard() {
                   {project.description && (
                     <p className="text-gray-600 mb-4">{project.description}</p>
                   )}
-                  
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleViewProject(project)}
@@ -138,7 +163,6 @@ export default function Dashboard() {
                   </button>
                 </div>
               </div>
-              
               <div className="p-6">
                 <p className="text-center text-gray-500 py-8">
                   Click "View Board" or "View All Tasks" to access the kanban board
@@ -148,27 +172,6 @@ export default function Dashboard() {
           </TaskProvider>
         )}
       </div>
-    </div>
-
-    <div>
-      <h1>Your Projects</h1>
-      <button onClick={() => setShowModal(true)}>Add Project</button>
-      {showModal && (
-        <AddProjectModal
-          onClose={() => setShowModal(false)}
-          onProjectAdded={() => window.location.reload()} // Simple force refresh; ideally use state update
-        />
-      )}
-      {loading && <div>Loading projects...</div>}
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      {!loading && !error && projects.length === 0 && <div>No projects yet. Create your first project!</div>}
-      <ul>
-        {projects.map(p => (
-          <li key={p.id}>
-            <a href={`/project/${p.id}`}>{p.name}</a>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
