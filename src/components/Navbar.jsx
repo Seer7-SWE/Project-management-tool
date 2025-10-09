@@ -4,10 +4,22 @@ import { supabase } from '../utils/supabaseClient';
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const user = supabase.auth.user();
+  const [user, setUser] = React.useState(null);
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    // Optionally subscribe to auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+    return () => {
+      listener?.unsubscribe();
+    };
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    setUser(null);
     navigate('/login');
   };
 
