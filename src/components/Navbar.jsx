@@ -1,31 +1,41 @@
-import React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../utils/supabaseClient';
 
 export default function Navbar() {
-  const { user, signOut } = useAuth()
   const navigate = useNavigate();
-  // Wrap signOut to redirect or reload after sign out
+  const user = supabase.auth.user();
+
   const handleSignOut = async () => {
-    await signOut();
+    await supabase.auth.signOut();
     navigate('/login');
-  }
+  };
+
   return (
-    <nav className="bg-white shadow px-6 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link to="/" className="font-semibold text-lg">PM Tool</Link>
-        <Link to="/" className="text-sm text-slate-600 hover:underline">Dashboard</Link>
+    <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
+      <div>
+        <Link to="/" className="text-lg font-bold">PM Tool</Link>
       </div>
       <div>
         {user ? (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-700">{user?.email}</span>
-            <button onClick={handleSignOut} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Sign out</button>
-          </div>
+          <>
+            <span className="mr-4">{user.email}</span>
+            <button
+              onClick={handleSignOut}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              Sign Out
+            </button>
+          </>
         ) : (
-          <Link to="/login" className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Sign in</Link>
+          <Link
+            to="/login"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Login
+          </Link>
         )}
       </div>
     </nav>
-  )
+  );
 }
