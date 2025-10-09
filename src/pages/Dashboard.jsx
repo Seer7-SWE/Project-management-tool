@@ -2,24 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
-import { TaskProvider } from '../context/TaskContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeProject, setActiveProject] = useState(null);
 
   useEffect(() => {
-    loadProjects();
-    const ch = supabase
+    fetchProjects();
+    const channel = supabase
       .channel('projects-list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => loadProjects())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => fetchProjects())
       .subscribe();
-    return () => supabase.removeChannel(ch);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  async function loadProjects() {
+  async function fetchProjects() {
     setLoading(true);
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
@@ -27,158 +27,100 @@ export default function Dashboard() {
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
+    const { data: projects, error } = await supabase
       .from('projects')
       .select('*, project_members!inner(role)')
       .eq('project_members.user_auth_id', userData.user.id)
-      .eq('archived', false)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error(error);
+      console.error('Error fetching projects:', error);
       setProjects([]);
     } else {
-      setProjects(data || []);
+      setProjects(projects || []);
     }
     setLoading(false);
   }
 
   async function createProject() {
-    const name = prompt('Project name');
-    if (!name) return;
+    const name = prompt('Enter project name:');
+    if (!name) return alert('Project name is required.');
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) return alert('Not logged in!');
+    if (!userData?.user) return alert('You must be logged in to create a project.');
 
-    // Insert project
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .insert([{ name, created_by: userData.user.id }])
-      .select()
-      .single();
-    if (projectError) return alert(projectError.message);
+    try {
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .insert([{ name, created_by: userData.user.id }])
+        .select()
+        .single();
+      if (projectError) throw new Error(projectError.message);
 
-    // Insert creator as member
-    const { error: memberError } = await supabase
-      .from('project_members')
-      .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
-    if (memberError) return alert(memberError.message);
+      const { error: memberError } = await supabase
+        .from('project_members')
+        .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
+      if (memberError) throw new Error(memberError.message);
 
-    // Wait a short moment for DB propagation/realtime
-    await new Promise(resolve => setTimeout(resolve, 500));
-    await loadProjects();
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert(`Failed to create project: ${error.message}`);
+    }
   }
 
-  const handleViewProject = (project) => {
-    setActiveProject(project);
-  };
-
-  const handleViewAllTasks = () => {
-    if (projects.length > 0) {
-      // By default, go to first project
-      navigate(`/tasks?project=${projects[0].id}`);
-    } else {
-      alert("No projects available.");
+  const handleViewTasks = (projectId) => {
+    if (!projectId) {
+      alert('No projects available.');
+      return;
     }
+    navigate(`/tasks?project=${projectId}`);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-100">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage your projects and tasks</p>
-          </div>
-          <div className="flex gap-3">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <div className="flex gap-4">
             <button
-              onClick={handleViewAllTasks}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              onClick={() => handleViewTasks(projects[0]?.id)}
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
             >
               View All Tasks
             </button>
             <button
               onClick={createProject}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
               + New Project
             </button>
           </div>
         </div>
-
-        {/* Projects Section */}
-        <div className="mb-8">
+        <div className="bg-white p-6 rounded shadow">
           <h2 className="text-xl font-semibold mb-4">Your Projects</h2>
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            </div>
+            <p>Loading...</p>
           ) : projects.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <p className="text-gray-500 mb-4">No projects yet. Create your first project!</p>
-              <button
-                onClick={createProject}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                Create Project
-              </button>
-            </div>
+            <p>No projects found. Create your first project.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map(project => (
-                <div key={project.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-                  <h3 className="text-lg font-semibold mb-2">{project.name}</h3>
-                  {project.description && (
-                    <p className="text-gray-600 mb-4">{project.description}</p>
-                  )}
-
-                  <div className="flex gap-2">
+            <ul>
+              {projects.map((project) => (
+                <li key={project.id} className="mb-4">
+                  <div className="flex justify-between items-center">
+                    <span>{project.name}</span>
                     <button
-                      onClick={() => handleViewProject(project)}
-                      className="flex-1 px-3 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
+                      onClick={() => handleViewTasks(project.id)}
+                      className="bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400"
                     >
-                      View Board
-                    </button>
-                    <button
-                      onClick={() => navigate(`/tasks?project=${project.id}`)}
-                      className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300"
-                    >
-                      Tasks
+                      View Tasks
                     </button>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
-
-        {/* Active Project Board */}
-        {activeProject && (
-          <TaskProvider projectId={activeProject.id}>
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-xl font-semibold">{activeProject.name}</h2>
-                    <p className="text-gray-600">{activeProject.description}</p>
-                  </div>
-                  <button
-                    onClick={() => setActiveProject(null)}
-                    className="px-3 py-1 text-gray-600 hover:text-gray-800"
-                  >
-                    ✕ Close
-                  </button>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-center text-gray-500 py-8">
-                  Click "View Board" or "View All Tasks" to access the kanban board
-                </p>
-              </div>
-            </div>
-          </TaskProvider>
-        )}
       </div>
     </div>
   );
