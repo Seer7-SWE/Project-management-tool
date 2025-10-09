@@ -22,7 +22,6 @@ export default function Dashboard() {
 
   async function loadProjects() {
     setLoading(true);
-    // Only fetch projects where user is a member
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
       setProjects([]);
@@ -57,11 +56,16 @@ export default function Dashboard() {
       .select()
       .single();
     if (projectError) return alert(projectError.message);
+
     // Insert creator as member
     const { error: memberError } = await supabase
       .from('project_members')
       .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
     if (memberError) return alert(memberError.message);
+
+    // Wait a bit to ensure DB reflects changes if necessary
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     await loadProjects();
   }
 
