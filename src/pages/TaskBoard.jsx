@@ -1,63 +1,52 @@
-import React, { useState } from "react";
-import { useTasks } from '../context/TaskContext';
-import TaskCard from '../components/TaskCard';
-import TaskModal from "../components/TaskModal";
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { supabase } from '../utils/supabaseClient';
 
 export default function TaskBoard() {
-  const { tasks, loading } = useTasks();
-  const [showModal, setShowModal] = useState(false);
-  const [editingTask, setEditingTask] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project');
 
-  const handleCreateTask = () => {
-    setEditingTask(null);
-    setShowModal(true);
-  };
+  useEffect(() => {
+    if (!projectId) {
+      alert('No project selected.');
+      setLoading(false);
+      return;
+    }
+    fetchTasks();
+  }, [projectId]);
 
-  const handleEditTask = (task) => {
-    setEditingTask(task);
-    setShowModal(true);
-  };
+  async function fetchTasks() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
 
-  const handleSaveTask = () => {
-    setShowModal(false);
-    setEditingTask(null);
-  };
-
-  if (loading) return <p className="text-center mt-10">Loading tasks...</p>;
+    if (error) {
+      console.error('Error fetching tasks:', error);
+      setTasks([]);
+    } else {
+      setTasks(data || []);
+    }
+    setLoading(false);
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Your Tasks</h1>
-        <button
-          onClick={handleCreateTask}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          + New Task
-        </button>
-      </div>
-
-      {tasks.length === 0 ? (
-        <p className="text-gray-500">No tasks yet. Add your first task above.</p>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-6">Tasks</h1>
+      {loading ? (
+        <p>Loading...</p>
+      ) : tasks.length === 0 ? (
+        <p>No tasks found for this project.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <ul>
           {tasks.map((task) => (
-            <TaskCard 
-              key={task.id} 
-              task={task} 
-              onEdit={handleEditTask}
-            />
+            <li key={task.id}>{task.title}</li>
           ))}
-        </div>
-      )}
-
-      {showModal && (
-        <TaskModal
-          task={editingTask}
-          projectId={null}
-          onClose={() => setShowModal(false)}
-          onSave={handleSaveTask}
-        />
+        </ul>
       )}
     </div>
   );
