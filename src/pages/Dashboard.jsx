@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
 import { TaskProvider } from '../context/TaskContext';
 
 export default function Dashboard() {
@@ -49,6 +48,7 @@ export default function Dashboard() {
     if (!name) return;
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) return alert('Not logged in!');
+
     // Insert project
     const { data: project, error: projectError } = await supabase
       .from('projects')
@@ -63,9 +63,8 @@ export default function Dashboard() {
       .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
     if (memberError) return alert(memberError.message);
 
-    // Wait a bit to ensure DB reflects changes if necessary
-    await new Promise(resolve => setTimeout(resolve, 300));
-
+    // Wait a short moment for DB propagation/realtime
+    await new Promise(resolve => setTimeout(resolve, 500));
     await loadProjects();
   }
 
@@ -74,7 +73,12 @@ export default function Dashboard() {
   };
 
   const handleViewAllTasks = () => {
-    navigate('/tasks');
+    if (projects.length > 0) {
+      // By default, go to first project
+      navigate(`/tasks?project=${projects[0].id}`);
+    } else {
+      alert("No projects available.");
+    }
   };
 
   return (
