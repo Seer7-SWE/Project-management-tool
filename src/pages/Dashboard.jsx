@@ -46,8 +46,9 @@ export default function Dashboard() {
         setProjects([]);
       } else {
         setProjects(data || []);
-      }
+      } finally {
       setLoading(false);
+    }
   }
 
   async function createProject() {
