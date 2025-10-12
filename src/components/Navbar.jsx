@@ -1,25 +1,14 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../utils/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const [user, setUser] = React.useState(null);
-
-  React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    // Optionally subscribe to auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-    return () => {
-      listener?.unsubscribe();
-    };
-  }, []);
+  const { user, logout } = useAuth();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    await logout();
+    // logout already navigates to /login, but keep safety:
     navigate('/login');
   };
 
@@ -30,26 +19,19 @@ export default function Navbar() {
       </div>
       <div>
         {user ? (
-          <>
-            <span className="mr-4">{user.email}</span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-700">{user.email}</span>
             <button
               onClick={handleSignOut}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+              className="px-3 py-1 bg-red-500 text-white rounded text-sm"
             >
-              Sign Out
+              Sign out
             </button>
-          </>
+          </div>
         ) : (
-          <Link
-            to="/login"
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Login
-          </Link>
+          <Link to="/login" className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Sign in</Link>
         )}
       </div>
     </nav>
   );
 }
-
-//dfjvndk
