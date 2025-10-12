@@ -127,12 +127,14 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-500">{project.description}</p>
                 </div>
                 <div className="flex gap-2">
+                  
                   <button
-                    onClick={() => handleViewTasks(project.id)}
-                    className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
+                    onClick={() => navigate(`/projects/${project.id}/tasks`)}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1 rounded"
                   >
                     View Tasks
                   </button>
+
                   <button
                     onClick={() => deleteProject(project.id)}
                     className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
