@@ -1,5 +1,5 @@
 import { useState, useEffect, useRouter } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../utils/supabaseClient';
 
 
 export default function Dashboard() {
