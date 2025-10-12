@@ -28,19 +28,50 @@ export default function TaskBoard() {
 
   useEffect(() => {
     if (!projectId) {
-      alert('No project selected.');
       setLoading(false);
       return;
     }
     fetchProjectAndTasks();
+
+    // subscribe to tasks for this project (realtime)
+    const channel = supabase
+      .channel(`public:tasks:project_${projectId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${projectId}` },
+        (payload) => {
+          // update tasks locally based on event
+          setTasks(prev => {
+            switch (payload.eventType) {
+              case 'INSERT':
+                return [payload.new, ...prev];
+              case 'UPDATE':
+                return prev.map(t => (t.id === payload.new.id ? payload.new : t));
+              case 'DELETE':
+                return prev.filter(t => t.id !== payload.old.id);
+              default:
+                return prev;
+            }
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (err) {
+        // ignore
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   async function fetchProjectAndTasks() {
     setLoading(true);
     try {
-      const [{ data: projectData, error: pErr }, { data: tasksData, error: tErr }] = await Promise.all([
-        supabase.from('projects').select('*').eq('id', projectId).single(),
+      const [{ data: projectData, error: pErr } = {}, { data: tasksData, error: tErr } = {}] = await Promise.all([
+        supabase.from('projects').select('*').eq('id', projectId).maybeSingle(),
         supabase.from('tasks').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
       ]);
 
@@ -83,10 +114,10 @@ export default function TaskBoard() {
       const { data, error } = await supabase.from('tasks').insert([payload]).select().single();
       if (error) throw error;
 
-      // prepend new task
+      // new task will also be added by realtime subscription or we add it locally
       setTasks(prev => [data, ...prev]);
 
-      // reset form and close modal
+      // reset form and close
       setForm({ title: '', description: '', priority: 'Normal', due_date: '', assigned_to_auth: '' });
       setCreating(false);
     } catch (err) {
@@ -153,7 +184,7 @@ export default function TaskBoard() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      // Quick toggle example: cycle todo -> in_progress -> done
+                      // Quick toggle example: cycles todo -> in_progress -> done
                       const next = task.status === 'todo' ? 'in_progress' : task.status === 'in_progress' ? 'done' : 'todo';
                       supabase.from('tasks').update({ status: next }).eq('id', task.id)
                         .then(({ data, error }) => {
