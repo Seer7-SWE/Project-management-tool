@@ -1,73 +1,97 @@
-import useTasks from '../hooks/useTasks';
-import { useEffect, useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
-import { useParams } from 'react-router-dom'; // If using react-router
+import React, { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+import { useParams } from "react-router-dom";
 
-const STATUSES = ['To Do', 'In Progress', 'Done'];
+const STATUSES = ["todo", "in_progress", "done"];
 
 export default function ProjectBoard() {
   const { projectId } = useParams();
-  const { tasks, loading, error } = useTasks(projectId);
-  const [realtimeTasks, setRealtimeTasks] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Supabase Realtime subscription
   useEffect(() => {
-    setRealtimeTasks(tasks); // Sync initial
+    if (!projectId) return;
+    fetchTasks();
+
+    // Real-time updates
     const channel = supabase
-      .channel('custom-all-tasks')
+      .channel("tasks-realtime")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${projectId}` },
-        payload => {
-          // Update tasks state based on event type
-          setRealtimeTasks(prev => {
-            switch (payload.eventType) {
-              case 'INSERT':
-                return [...prev, payload.new];
-              case 'UPDATE':
-                return prev.map(t => t.id === payload.new.id ? payload.new : t);
-              case 'DELETE':
-                return prev.filter(t => t.id !== payload.old.id);
-              default:
-                return prev;
-            }
-          });
-        }
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks", filter: `project_id=eq.${projectId}` },
+        () => fetchTasks()
       )
       .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [projectId, tasks]);
+  }, [projectId]);
 
-  function handleDrag(taskId, newStatus) {
-    supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
-    // UI will update via Realtime!
+  async function fetchTasks() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      setTasks([]);
+    } else {
+      setTasks(data);
+    }
+    setLoading(false);
+  }
+
+  async function createTask() {
+    const title = prompt("Enter task title:");
+    if (!title?.trim()) return;
+
+    const { error } = await supabase.from("tasks").insert([
+      { project_id: projectId, title, status: "todo" },
+    ]);
+    if (error) alert("Error creating task: " + error.message);
+    else await fetchTasks();
   }
 
   if (loading) return <div>Loading tasks...</div>;
-  if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
   return (
-    <div style={{ display: 'flex', gap: 24 }}>
-      {STATUSES.map(status => (
-        <div key={status} style={{ flex: 1, minWidth: 200, border: '1px solid #eee', padding: 8 }}>
-          <h3>{status}</h3>
-          {realtimeTasks.filter(t => t.status === status).map(task => (
-            <div
-              key={task.id}
-              draggable
-              onDragEnd={() => handleDrag(task.id, status)}
-              style={{ background: '#fafafa', margin: 4, padding: 8, border: '1px solid #ddd' }}
-            >
-              <strong>{task.title}</strong>
-              <br />
-              <span>Priority: {task.priority}</span>
-              {/* Add file links, tags, assigned users, etc here */}
-            </div>
-          ))}
-        </div>
-      ))}
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="flex justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Project Tasks</h1>
+        <button
+          onClick={createTask}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        >
+          + New Task
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-6">
+        {STATUSES.map((status) => (
+          <div key={status} className="bg-white p-4 rounded shadow">
+            <h2 className="text-lg font-semibold capitalize mb-4">
+              {status.replace("_", " ")}
+            </h2>
+            {tasks
+              .filter((t) => t.status === status)
+              .map((task) => (
+                <div
+                  key={task.id}
+                  className="border rounded p-3 mb-3 bg-gray-50 hover:bg-gray-100"
+                >
+                  <p className="font-medium">{task.title}</p>
+                  <p className="text-sm text-gray-500">
+                    Priority: {task.priority || "Normal"}
+                  </p>
+                </div>
+              ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
