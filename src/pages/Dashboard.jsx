@@ -41,15 +41,20 @@ export default function Dashboard() {
         .eq('project_members.user_auth_id', userData.user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
+       if (error) {
         console.error('Error fetching projects:', error);
         setProjects([]);
       } else {
         setProjects(data || []);
-      } finally {
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching projects:', err);
+      setProjects([]);
+    } finally {
       setLoading(false);
     }
   }
+
 
   async function createProject() {
     const name = prompt('Project name');
