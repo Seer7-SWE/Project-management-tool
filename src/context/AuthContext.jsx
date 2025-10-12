@@ -11,23 +11,34 @@ export const AuthProvider = ({ children }) => {
 
   // Fetch user session on load
   useEffect(() => {
+    let subscription;
     const getSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Error fetching session:", error.message);
-      } else {
+      try {
+        const { data: { session } = {} } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
+      } catch (err) {
+        console.error("Error fetching session:", err);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    // v2 onAuthStateChange returns { data: { subscription } }
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
+    subscription = data?.subscription;
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      try {
+        subscription?.unsubscribe();
+      } catch (err) {
+        // ignore if already unsubscribed
+      }
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -37,36 +48,34 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (email, password, full_name) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return { success: false, message: error.message };
-
-    // Insert into 'users' table
-    from("users").insert({
-      auth_id: data.user.id,
+    // Use signUp with options to attach user metadata
+    const { data, error } = await supabase.auth.signUp({
       email,
-      full_name,
-      role: "employee",
-
-      
-
+      password,
+      options: { data: { full_name } }
     });
 
-    await supabase.auth.signUp({
-     email,
-     password,
-     options: {
-     data: { full_name },
-    emailRedirectTo: `${window.location.origin}/login`
+    if (error) return { success: false, message: error.message };
+    // Optionally upsert into your users table if you have one (ensure RLS/policies allow it)
+    try {
+      await supabase.from("users").insert({
+        auth_id: data.user.id,
+        email,
+        full_name,
+        role: "employee"
+      }, { upsert: true });
+    } catch (e) {
+      // ignore if user table not present or if RLS blocks it; console for debugging
+      console.warn("Could not upsert users row:", e);
     }
-    });
 
     return { success: true, user: data.user };
-
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    navigate('/login');
   };
 
   return (
