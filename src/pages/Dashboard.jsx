@@ -39,9 +39,10 @@ export default function Dashboard() {
         .from('projects')
         .select('*, project_members!inner(role)')
         .eq('project_members.user_auth_id', userData.user.id)
+        .eq('archived', false)
         .order('created_at', { ascending: false });
 
-       if (error) {
+      if (error) {
         console.error('Error fetching projects:', error);
         setProjects([]);
       } else {
@@ -55,10 +56,9 @@ export default function Dashboard() {
     }
   }
 
-
   async function createProject() {
     const name = prompt('Project name');
-    if (!name) return alert('Project name is required.');
+    if (!name) return;
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return alert('Not logged in!');
@@ -69,19 +69,19 @@ export default function Dashboard() {
         .insert([{ name, created_by: userData.user.id }])
         .select()
         .single();
-      if (projectError) throw new Error(projectError.message);
+      if (projectError) throw projectError;
 
       // Insert creator as member
       const { error: memberError } = await supabase
         .from('project_members')
         .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
-      if (memberError) throw new Error(memberError.message);
+      if (memberError) throw memberError;
 
       // Re-fetch projects
       await fetchProjects();
-    } catch (error) {
-      console.error('Create project failed:', error);
-      alert(`Failed to create project: ${error.message}`);
+    } catch (err) {
+      console.error('Create project failed:', err);
+      alert('Failed to create project: ' + (err.message || JSON.stringify(err)));
     }
   }
 
@@ -99,7 +99,7 @@ export default function Dashboard() {
   }
 
   const handleViewTasks = (projectId) => {
-    if (!projectId) { alert('No projects available.'); return: }
+    if (!projectId) return alert('Invalid project selected.');
     navigate(`/tasks?project=${projectId}`);
   };
 
