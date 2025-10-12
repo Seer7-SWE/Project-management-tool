@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
 
+/**
+ * Dashboard:
+ * - fetches projects for the logged-in user (requires project_members join)
+ * - create project (inserts project and member)
+ * - delete project (with confirmation)
+ * - view tasks navigates to /tasks?project=<id>
+ */
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
@@ -10,16 +18,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchProjects();
-    // subscribe to realtime changes in projects table (optional)
+
+    // Realtime subscription to projects (use channel id unique per client)
     const channel = supabase
-      .channel('projects-list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+      .channel('public:projects')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
+        // Simple: re-fetch on any change (INSERT/UPDATE/DELETE)
         fetchProjects();
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      try {
+        supabase.removeChannel(channel);
+      } catch (err) {
+        // ignore
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -28,17 +42,17 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) {
+      const user = userData?.user;
+      if (!user) {
         setProjects([]);
         setLoading(false);
         return;
       }
 
-      // Fetch projects where the current user is a member
       const { data, error } = await supabase
         .from('projects')
         .select('*, project_members!inner(role)')
-        .eq('project_members.user_auth_id', userData.user.id)
+        .eq('project_members.user_auth_id', user.id)
         .eq('archived', false)
         .order('created_at', { ascending: false });
 
@@ -61,12 +75,13 @@ export default function Dashboard() {
     if (!name) return;
     try {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) return alert('Not logged in!');
+      const user = userData?.user;
+      if (!user) return alert('Not logged in!');
 
       // Insert project
       const { data: project, error: projectError } = await supabase
         .from('projects')
-        .insert([{ name, created_by: userData.user.id }])
+        .insert([{ name, created_by: user.id }])
         .select()
         .single();
       if (projectError) throw projectError;
@@ -74,10 +89,10 @@ export default function Dashboard() {
       // Insert creator as member
       const { error: memberError } = await supabase
         .from('project_members')
-        .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
+        .insert([{ project_id: project.id, user_auth_id: user.id, role: 'owner' }]);
       if (memberError) throw memberError;
 
-      // Re-fetch projects
+      // Re-fetch projects. If realtime is delayed, a small delay helps; normally not required.
       await fetchProjects();
     } catch (err) {
       console.error('Create project failed:', err);
@@ -90,7 +105,6 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from('projects').delete().eq('id', id);
       if (error) throw error;
-      // refetch projects
       await fetchProjects();
     } catch (err) {
       console.error('Delete project failed:', err);
@@ -107,7 +121,6 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
@@ -129,7 +142,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Projects Section */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Your Projects</h2>
           {loading ? (
