@@ -39,7 +39,6 @@ export default function Dashboard() {
         .from('projects')
         .select('*, project_members!inner(role)')
         .eq('project_members.user_auth_id', userData.user.id)
-        .eq('archived', false)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -48,17 +47,12 @@ export default function Dashboard() {
       } else {
         setProjects(data || []);
       }
-    } catch (err) {
-      console.error('Unexpected error fetching projects:', err);
-      setProjects([]);
-    } finally {
       setLoading(false);
-    }
   }
 
   async function createProject() {
     const name = prompt('Project name');
-    if (!name) return;
+    if (!name) return alert('Project name is required.');
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return alert('Not logged in!');
@@ -69,19 +63,19 @@ export default function Dashboard() {
         .insert([{ name, created_by: userData.user.id }])
         .select()
         .single();
-      if (projectError) throw projectError;
+      if (projectError) throw new Error(projectError.message);
 
       // Insert creator as member
       const { error: memberError } = await supabase
         .from('project_members')
         .insert([{ project_id: project.id, user_auth_id: userData.user.id, role: 'owner' }]);
-      if (memberError) throw memberError;
+      if (memberError) throw new Error(memberError.message);
 
       // Re-fetch projects
       await fetchProjects();
-    } catch (err) {
-      console.error('Create project failed:', err);
-      alert('Failed to create project: ' + (err.message || JSON.stringify(err)));
+    } catch (error) {
+      console.error('Create project failed:', error);
+      alert(`Failed to create project: ${error.message}`);
     }
   }
 
@@ -99,7 +93,7 @@ export default function Dashboard() {
   }
 
   const handleViewTasks = (projectId) => {
-    if (!projectId) return alert('Invalid project selected.');
+    if (!projectId) { alert('No projects available.'); return: }
     navigate(`/tasks?project=${projectId}`);
   };
 
