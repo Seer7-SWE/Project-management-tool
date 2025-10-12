@@ -3,14 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
 
-/**
- * Dashboard:
- * - fetches projects for the logged-in user (requires project_members join)
- * - create project (inserts project and member)
- * - delete project (with confirmation)
- * - view tasks navigates to /tasks?project=<id>
- */
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
@@ -19,23 +11,19 @@ export default function Dashboard() {
   useEffect(() => {
     fetchProjects();
 
-    // Realtime subscription to projects (use channel id unique per client)
+    // Realtime subscription
     const channel = supabase
-      .channel('public:projects')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
-        // Simple: re-fetch on any change (INSERT/UPDATE/DELETE)
-        fetchProjects();
-      })
+      .channel('projects-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'projects' },
+        () => fetchProjects()
+      )
       .subscribe();
 
     return () => {
-      try {
-        supabase.removeChannel(channel);
-      } catch (err) {
-        // ignore
-      }
+      supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchProjects() {
@@ -45,25 +33,23 @@ export default function Dashboard() {
       const user = userData?.user;
       if (!user) {
         setProjects([]);
-        setLoading(false);
         return;
       }
 
       const { data, error } = await supabase
         .from('projects')
-        .select('*, project_members!inner(role)')
+        .select(`
+          id, name, description, created_at,
+          project_members!inner(user_auth_id)
+        `)
         .eq('project_members.user_auth_id', user.id)
         .eq('archived', false)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching projects:', error);
-        setProjects([]);
-      } else {
-        setProjects(data || []);
-      }
+      if (error) throw error;
+      setProjects(data || []);
     } catch (err) {
-      console.error('Unexpected error fetching projects:', err);
+      console.error('Fetch projects failed:', err);
       setProjects([]);
     } finally {
       setLoading(false);
@@ -71,122 +57,101 @@ export default function Dashboard() {
   }
 
   async function createProject() {
-    const name = prompt('Project name');
-    if (!name) return;
+    const name = prompt('Enter new project name:');
+    if (!name?.trim()) return;
     try {
       const { data: userData } = await supabase.auth.getUser();
       const user = userData?.user;
-      if (!user) return alert('Not logged in!');
+      if (!user) return alert('You must be logged in.');
 
-      // Insert project
-      const { data: project, error: projectError } = await supabase
+      const { data: project, error } = await supabase
         .from('projects')
         .insert([{ name, created_by: user.id }])
         .select()
         .single();
-      if (projectError) throw projectError;
 
-      // Insert creator as member
-      const { error: memberError } = await supabase
-        .from('project_members')
-        .insert([{ project_id: project.id, user_auth_id: user.id, role: 'owner' }]);
-      if (memberError) throw memberError;
+      if (error) throw error;
 
-      // Re-fetch projects. If realtime is delayed, a small delay helps; normally not required.
+      await supabase.from('project_members').insert([
+        { project_id: project.id, user_auth_id: user.id, role: 'owner' },
+      ]);
+
       await fetchProjects();
     } catch (err) {
-      console.error('Create project failed:', err);
-      alert('Failed to create project: ' + (err.message || JSON.stringify(err)));
+      alert('Error creating project: ' + err.message);
     }
   }
 
   async function deleteProject(id) {
-    if (!confirm('Delete this project and all its tasks? This cannot be undone.')) return;
+    if (!confirm('Delete this project and all tasks?')) return;
     try {
       const { error } = await supabase.from('projects').delete().eq('id', id);
       if (error) throw error;
       await fetchProjects();
     } catch (err) {
-      console.error('Delete project failed:', err);
-      alert('Failed to delete project: ' + (err.message || JSON.stringify(err)));
+      alert('Delete failed: ' + err.message);
     }
   }
 
-  const handleViewTasks = (projectId) => {
-    if (!projectId) return alert('Invalid project selected.');
-    navigate(`/tasks?project=${projectId}`);
+  const handleViewTasks = (id) => {
+    navigate(`/tasks?project=${id}`);
   };
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage your projects and tasks</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleViewTasks(projects[0]?.id)}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              View All Tasks
-            </button>
-            <button
-              onClick={createProject}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-            >
-              + New Project
-            </button>
-          </div>
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Your Projects</h1>
+          <button
+            onClick={createProject}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            + New Project
+          </button>
         </div>
 
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Your Projects</h2>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <p className="text-gray-500 mb-4">No projects yet. Create your first project!</p>
-              <button
-                onClick={createProject}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        {loading ? (
+          <div className="text-center py-8">Loading projects...</div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-8 bg-white rounded-lg shadow">
+            <p className="text-gray-500">No projects yet. Create your first project.</p>
+            <button
+              onClick={createProject}
+              className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            >
+              Create Project
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white p-6 rounded-lg shadow space-y-4">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="flex justify-between items-center border-b pb-3"
               >
-                Create Project
-              </button>
-            </div>
-          ) : (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <ul>
-                {projects.map((project) => (
-                  <li key={project.id} className="flex justify-between items-center py-3 border-b last:border-b-0">
-                    <div>
-                      <div className="text-lg font-medium">{project.name}</div>
-                      {project.description && <div className="text-sm text-gray-500">{project.description}</div>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleViewTasks(project.id)}
-                        className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300"
-                      >
-                        View Tasks
-                      </button>
-                      <button
-                        onClick={() => deleteProject(project.id)}
-                        className="px-3 py-1 bg-red-500 text-white text-sm rounded-md hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+                <div>
+                  <p className="font-semibold text-gray-800">{project.name}</p>
+                  <p className="text-sm text-gray-500">{project.description}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleViewTasks(project.id)}
+                    className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
+                  >
+                    View Tasks
+                  </button>
+                  <button
+                    onClick={() => deleteProject(project.id)}
+                    className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
