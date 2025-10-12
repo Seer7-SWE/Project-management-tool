@@ -28,6 +28,7 @@ export default function TaskBoard() {
 
   useEffect(() => {
     if (!projectId) {
+      alert('No project selected.');
       setLoading(false);
       return;
     }
