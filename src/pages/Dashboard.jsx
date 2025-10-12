@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../utils/supabaseClient';
-import Navbar from '../components/Navbar';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../utils/supabaseClient";
+import Navbar from "../components/Navbar";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,12 +11,12 @@ export default function Dashboard() {
   useEffect(() => {
     fetchProjects();
 
-    // Realtime subscription
+    // Realtime subscription for any project changes
     const channel = supabase
-      .channel('projects-changes')
+      .channel("projects-changes")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'projects' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "projects" },
         () => fetchProjects()
       )
       .subscribe();
@@ -37,19 +37,15 @@ export default function Dashboard() {
       }
 
       const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          id, name, description, created_at,
-          project_members!inner(user_auth_id)
-        `)
-        .eq('project_members.user_auth_id', user.id)
-        .eq('archived', false)
-        .order('created_at', { ascending: false });
+        .from("projects")
+        .select("id, name, description, created_at, created_by")
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setProjects(data || []);
     } catch (err) {
-      console.error('Fetch projects failed:', err);
+      console.error("Fetch projects failed:", err);
       setProjects([]);
     } finally {
       setLoading(false);
@@ -57,44 +53,40 @@ export default function Dashboard() {
   }
 
   async function createProject() {
-    const name = prompt('Enter new project name:');
+    const name = prompt("Enter new project name:");
     if (!name?.trim()) return;
     try {
       const { data: userData } = await supabase.auth.getUser();
       const user = userData?.user;
-      if (!user) return alert('You must be logged in.');
+      if (!user) return alert("You must be logged in.");
 
-      const { data: project, error } = await supabase
-        .from('projects')
+      const { data, error } = await supabase
+        .from("projects")
         .insert([{ name, created_by: user.id }])
         .select()
         .single();
 
       if (error) throw error;
 
-      await supabase.from('project_members').insert([
-        { project_id: project.id, user_auth_id: user.id, role: 'owner' },
-      ]);
-
-      await fetchProjects();
+      await fetchProjects(); // Instantly update dashboard
     } catch (err) {
-      alert('Error creating project: ' + err.message);
+      alert("Error creating project: " + err.message);
     }
   }
 
   async function deleteProject(id) {
-    if (!confirm('Delete this project and all tasks?')) return;
+    if (!confirm("Delete this project and all tasks?")) return;
     try {
-      const { error } = await supabase.from('projects').delete().eq('id', id);
+      const { error } = await supabase.from("projects").delete().eq("id", id);
       if (error) throw error;
       await fetchProjects();
     } catch (err) {
-      alert('Delete failed: ' + err.message);
+      alert("Delete failed: " + err.message);
     }
   }
 
   const handleViewTasks = (id) => {
-    navigate(`/tasks?project=${id}`);
+    navigate(`/tasks/${id}`);
   };
 
   return (
