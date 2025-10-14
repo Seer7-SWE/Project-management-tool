@@ -129,8 +129,8 @@ export default function Dashboard() {
                 <div className="flex gap-2">
                   
                   <button
-                    onClick={() => navigate(`/projects/${project.id}/tasks`)}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1 rounded"
+                     onClick={() => navigate(`/projects/${project.id}/tasks`)}
+                     className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1 rounded"
                   >
                     View Tasks
                   </button>
