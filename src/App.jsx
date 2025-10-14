@@ -6,6 +6,7 @@ import ProjectBoard from './components/ProjectBoard'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import ProjectTasks from './pages/ProjectTasks'
 
 function Protected({ children }) {
   const { user } = useAuth()
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/" element={<Protected><Dashboard /></Protected>} />
           <Route path="/tasks" element={<Protected><ProjectBoard /></Protected>} />
+          <Route path="/projects/:projectId/tasks" element={<Protected><ProjectTasks /></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </TaskProvider>
