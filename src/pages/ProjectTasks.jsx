@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
-import { Button } from "@/components/ui/button"; // or your existing button
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 export default function ProjectTasks() {
