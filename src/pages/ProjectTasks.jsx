@@ -1,8 +1,8 @@
 // src/pages/ProjectTasks.jsx
-import React, { useEffect, useState, DragDropContext, Droppable, Draggable  } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
-// import { DragDropContext, Droppable, Draggable } from "react-router-dom";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 export default function ProjectTasks() {
   const { projectId } = useParams();
@@ -54,7 +54,10 @@ export default function ProjectTasks() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">Tasks</h1>
-        <Button onClick={createTask}>+ New Task</Button>
+        <button
+           onClick={createTask}
+           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        > + New Task </button>
       </div>
 
       {loading ? (
