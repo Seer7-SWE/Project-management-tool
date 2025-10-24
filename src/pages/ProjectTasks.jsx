@@ -1,8 +1,9 @@
 // src/pages/ProjectTasks.jsx
-import React, { useEffect, useState, DragDropContext, Droppable, Draggable  } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
-// import { DragDropContext, Droppable, Draggable } from "react-router-dom";
+import { Button } from "@/components/ui/button"; // or your existing button
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 export default function ProjectTasks() {
   const { projectId } = useParams();
